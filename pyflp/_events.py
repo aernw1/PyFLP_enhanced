@@ -67,9 +67,11 @@ class _EventEnumMeta(enum.EnumMeta):
         to resolve IDs via subclasses or pseudo-members.
         """
         if self.__name__ == "EventEnum" and not self._member_map_ and not args and not kwds:
-            missing = self._missing_(value)
-            if missing is not None:
-                return missing
+            missing_handler = getattr(self, "_missing_", None)
+            if callable(missing_handler):
+                missing = missing_handler(value)
+                if missing is not None:
+                    return missing
         return super().__call__(value, *args, **kwds)
 
 
