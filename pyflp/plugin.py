@@ -239,6 +239,21 @@ class _VSTPluginEventID(ct.EnumBase):
     _57 = 57  # TODO, not present for Waveshells
 
 
+_KNOWN_VST_PLUGIN_EVENT_IDS = {member.value for member in _VSTPluginEventID.__members__.values()}
+
+
+class _VSTPluginEventIDAdapter(c.Adapter):
+    """Decodes known VST sub-event IDs as enum, keeps unknown IDs as ints."""
+
+    def _decode(self, obj: int, context: Any, path: Any) -> _VSTPluginEventID | int:
+        if obj in _KNOWN_VST_PLUGIN_EVENT_IDS:
+            return _VSTPluginEventID(obj)
+        return obj
+
+    def _encode(self, obj: _VSTPluginEventID | int, context: Any, path: Any) -> int:
+        return int(obj)
+
+
 class _VSTFlags(enum.IntFlag):
     SendPBRange = 1 << 0
     FixedSizeBuffers = 1 << 1
@@ -289,7 +304,7 @@ class VSTPluginEvent(StructEventBase):
         "events"
         / c.GreedyRange(
             c.Struct(
-                "id" / StdEnum[_VSTPluginEventID](c.Int32ul),
+                "id" / _VSTPluginEventIDAdapter(c.Int32ul),
                 # ! Using a c.Select or c.IfThenElse doesn't work here
                 # Check https://github.com/construct/construct/issues/993
                 "data"  # pyright: ignore
@@ -313,15 +328,35 @@ class VSTPluginEvent(StructEventBase):
     ).compile()
 
     def __init__(self, id: Any, data: bytearray) -> None:
-        if data[0] not in (8, 10):
+        marker = data[0] if data else None
+        if marker not in (8, 10):
             warnings.warn(
-                f"VSTPluginEvent: Unknown marker {data[0]} detected. "
-                "Open an issue at https://github.com/demberto/PyFLP/issues "
-                "if you are seeing this!",
+                f"VSTPluginEvent: Unknown marker {marker} detected; "
+                "continuing parse with best-effort fallbacks. "
+                "Please report this sample at "
+                "https://github.com/aernw1/StemHub/issues.",
                 RuntimeWarning,
                 stacklevel=3,
             )
         super().__init__(id, data)
+
+        unknown_events = [
+            (cast(int, event["id"]), len(cast(bytes, event["data"])))
+            for event in self["events"]
+            if type(event["id"]) is int
+        ]
+        if unknown_events:
+            event_info = ", ".join(
+                f"{event_id} ({size} bytes)" for event_id, size in unknown_events
+            )
+            warnings.warn(
+                "VSTPluginEvent: Unknown VST sub-event IDs encountered: "
+                f"{event_info}. Payloads were preserved as raw bytes and parsing continued. "
+                "Please report this sample at "
+                "https://github.com/aernw1/StemHub/issues.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
 
 
 @enum.unique

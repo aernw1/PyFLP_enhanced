@@ -8,6 +8,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `tools/flp_parse_report.py` for generating an HTML parse coverage report for
+  `.flp` files, including unknown top-level events and unknown VST sub-events.
+
+### Fixed
+
+- Hardened `VSTPluginEvent` parsing to tolerate unknown wrapper markers and unknown
+  sub-event IDs with warning diagnostics while preserving unknown payload bytes.
+
 ## [2.2.1] - 2023-06-05
 
 ### Fixed
