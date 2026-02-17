@@ -65,6 +65,7 @@ def _import_pyflp() -> tuple[Any, Any, Any]:
         import pyflp  # type: ignore
         from pyflp._events import UnknownDataEvent  # type: ignore
         from pyflp.plugin import VSTPluginEvent  # type: ignore
+
         return pyflp, UnknownDataEvent, VSTPluginEvent
     except ModuleNotFoundError:
         repo_root = Path(__file__).resolve().parents[1]
@@ -75,6 +76,7 @@ def _import_pyflp() -> tuple[Any, Any, Any]:
         import pyflp  # type: ignore
         from pyflp._events import UnknownDataEvent  # type: ignore
         from pyflp.plugin import VSTPluginEvent  # type: ignore
+
         return pyflp, UnknownDataEvent, VSTPluginEvent
     except ModuleNotFoundError as exc:
         missing = exc.name or "dependency"
@@ -120,10 +122,7 @@ def build_report(flp_path: Path, top_n: int = 25) -> str:
     unknown_pct = 100.0 - parsed_pct if total_events else 0.0
 
     domain_rows = "\n".join(
-        "<tr>"
-        f"<td>{html.escape(domain)}</td>"
-        f"<td>{count}</td>"
-        "</tr>"
+        "<tr>" f"<td>{html.escape(domain)}</td>" f"<td>{count}</td>" "</tr>"
         for domain, count in event_domain_counts.most_common(top_n)
     )
     if not domain_rows:
@@ -148,27 +147,22 @@ def build_report(flp_path: Path, top_n: int = 25) -> str:
         f"<td>{html.escape(domain)}</td>"
         f"<td>{count}</td>"
         "</tr>"
-        for (event_id, event_name, event_type, domain), count in top_level_id_counts.most_common(top_n)
+        for (event_id, event_name, event_type, domain), count in top_level_id_counts.most_common(
+            top_n
+        )
     )
     if not id_rows:
         id_rows = "<tr><td colspan='5'>No events</td></tr>"
 
     unknown_top_level_rows = "\n".join(
-        "<tr>"
-        f"<td>{event_id}</td>"
-        f"<td>{html.escape(domain)}</td>"
-        f"<td>{count}</td>"
-        "</tr>"
+        "<tr>" f"<td>{event_id}</td>" f"<td>{html.escape(domain)}</td>" f"<td>{count}</td>" "</tr>"
         for (event_id, domain), count in unknown_top_level_id_counts.most_common(top_n)
     )
     if not unknown_top_level_rows:
         unknown_top_level_rows = "<tr><td colspan='3'>None</td></tr>"
 
     unknown_vst_rows = "\n".join(
-        "<tr>"
-        f"<td>{sub_id}</td>"
-        f"<td>{count}</td>"
-        "</tr>"
+        "<tr>" f"<td>{sub_id}</td>" f"<td>{count}</td>" "</tr>"
         for sub_id, count in unknown_vst_counts.most_common(top_n)
     )
     if not unknown_vst_rows:
@@ -246,11 +240,15 @@ section {{ margin-bottom: 20px; }}
   </div>
   <div class="card">
     <div>Unknown top-level events</div>
-    <div class="metric {'bad' if unknown_top_level else 'ok'}">{len(unknown_top_level)} ({unknown_pct:.2f}%)</div>
+    <div class="metric {'bad' if unknown_top_level else 'ok'}">
+      {len(unknown_top_level)} ({unknown_pct:.2f}%)
+    </div>
   </div>
   <div class="card">
     <div>Unknown VST sub-events</div>
-    <div class="metric {'warn' if unknown_vst_subevents else 'ok'}">{len(unknown_vst_subevents)}</div>
+    <div class="metric {'warn' if unknown_vst_subevents else 'ok'}">
+      {len(unknown_vst_subevents)}
+    </div>
   </div>
 </div>
 

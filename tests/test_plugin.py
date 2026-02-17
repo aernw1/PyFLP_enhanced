@@ -179,9 +179,7 @@ def test_vst_unknown_marker_parses_with_warning():
 
 
 def test_vst_unknown_subevent_id_parses_with_warning_and_preserves_bytes():
-    with pytest.warns(
-        RuntimeWarning, match=r"Unknown VST sub-event IDs encountered: 99"
-    ):
+    with pytest.warns(RuntimeWarning, match=r"Unknown VST sub-event IDs encountered: 99"):
         djmfilter = get_plugin("xfer-djmfilter-unknown-subevent-id.fst", VSTPlugin)
 
     assert djmfilter.name == "DJMFilter"
@@ -192,9 +190,7 @@ def test_vst_unknown_subevent_id_parses_with_warning_and_preserves_bytes():
     )
 
     event = cast(VSTPluginEvent, djmfilter.events.first(PluginID.Data))
-    unknown_events = [
-        subevent for subevent in event["events"] if type(subevent["id"]) is int
-    ]
+    unknown_events = [subevent for subevent in event["events"] if type(subevent["id"]) is int]
 
     assert any(subevent["id"] == 99 for subevent in unknown_events)
     assert all(isinstance(subevent["data"], bytes) for subevent in unknown_events)
