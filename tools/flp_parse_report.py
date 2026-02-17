@@ -5,13 +5,10 @@ from __future__ import annotations
 
 import argparse
 import html
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
-
-import pyflp
-from pyflp._events import UnknownDataEvent
-from pyflp.plugin import VSTPluginEvent
 
 
 def _pct(numerator: int, denominator: int) -> float:
@@ -27,7 +24,37 @@ def _event_id_name(event: Any) -> str:
     return str(name)
 
 
+def _import_pyflp() -> tuple[Any, Any, Any]:
+    try:
+        import pyflp  # type: ignore
+        from pyflp._events import UnknownDataEvent  # type: ignore
+        from pyflp.plugin import VSTPluginEvent  # type: ignore
+        return pyflp, UnknownDataEvent, VSTPluginEvent
+    except ModuleNotFoundError:
+        repo_root = Path(__file__).resolve().parents[1]
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+
+    try:
+        import pyflp  # type: ignore
+        from pyflp._events import UnknownDataEvent  # type: ignore
+        from pyflp.plugin import VSTPluginEvent  # type: ignore
+        return pyflp, UnknownDataEvent, VSTPluginEvent
+    except ModuleNotFoundError as exc:
+        missing = exc.name or "dependency"
+        raise SystemExit(
+            "Could not import pyflp runtime dependency "
+            f"({missing}).\n"
+            "Install project dependencies and rerun, for example:\n"
+            "  python3.10 -m venv .venv310\n"
+            "  .venv310/bin/pip install -e '.[dev]'\n"
+            "  .venv310/bin/python tools/flp_parse_report.py /path/to/file.flp "
+            "-o parse-report.html"
+        ) from exc
+
+
 def build_report(flp_path: Path, top_n: int = 25) -> str:
+    pyflp, UnknownDataEvent, VSTPluginEvent = _import_pyflp()
     project = pyflp.parse(flp_path)
     events = list(project.events)
 
