@@ -11,6 +11,25 @@ from pathlib import Path
 from typing import Any
 
 
+_DOMAIN_BY_ID_ENUM = {
+    "ProjectID": "project",
+    "ChannelID": "channel-rack",
+    "RackID": "channel-rack",
+    "DisplayGroupID": "channel-rack",
+    "PatternsID": "pattern",
+    "PatternID": "pattern",
+    "ArrangementsID": "arrangement",
+    "ArrangementID": "arrangement",
+    "TrackID": "arrangement",
+    "TimeMarkerID": "arrangement",
+    "MixerID": "mixer",
+    "InsertID": "mixer",
+    "SlotID": "mixer",
+    "PluginID": "plugin",
+    "ControllerID": "controller",
+}
+
+
 def _pct(numerator: int, denominator: int) -> float:
     if denominator == 0:
         return 0.0
@@ -22,6 +41,23 @@ def _event_id_name(event: Any) -> str:
     if name is None:
         return str(int(event.id))
     return str(name)
+
+
+def _event_domain(event: Any) -> str:
+    enum_name = event.id.__class__.__name__
+    if enum_name in _DOMAIN_BY_ID_ENUM:
+        return _DOMAIN_BY_ID_ENUM[enum_name]
+
+    type_name = type(event).__name__
+    if "Plugin" in type_name or type_name in {"WrapperEvent", "VSTPluginEvent"}:
+        return "plugin"
+    if type_name in {"NotesEvent", "ControllerEvent"}:
+        return "pattern"
+    if type_name in {"PlaylistEvent", "TrackEvent", "PLSelectionEvent"}:
+        return "arrangement"
+    if type_name in {"MixerParamsEvent", "InsertFlagsEvent", "InsertRoutingEvent"}:
+        return "mixer"
+    return "core/unknown"
 
 
 def _import_pyflp() -> tuple[Any, Any, Any]:
@@ -62,11 +98,15 @@ def build_report(flp_path: Path, top_n: int = 25) -> str:
     unknown_top_level = [event for event in events if isinstance(event, UnknownDataEvent)]
     parsed_events = total_events - len(unknown_top_level)
 
-    event_type_counts = Counter(type(event).__name__ for event in events)
+    event_domain_counts = Counter(_event_domain(event) for event in events)
+    event_type_counts = Counter((type(event).__name__, _event_domain(event)) for event in events)
     top_level_id_counts = Counter(
-        (int(event.id), _event_id_name(event), type(event).__name__) for event in events
+        (int(event.id), _event_id_name(event), type(event).__name__, _event_domain(event))
+        for event in events
     )
-    unknown_top_level_id_counts = Counter(int(event.id) for event in unknown_top_level)
+    unknown_top_level_id_counts = Counter(
+        (int(event.id), _event_domain(event)) for event in unknown_top_level
+    )
 
     unknown_vst_subevents: list[tuple[int, int]] = []
     for event in events:
@@ -79,37 +119,50 @@ def build_report(flp_path: Path, top_n: int = 25) -> str:
     parsed_pct = _pct(parsed_events, total_events)
     unknown_pct = 100.0 - parsed_pct if total_events else 0.0
 
+    domain_rows = "\n".join(
+        "<tr>"
+        f"<td>{html.escape(domain)}</td>"
+        f"<td>{count}</td>"
+        "</tr>"
+        for domain, count in event_domain_counts.most_common(top_n)
+    )
+    if not domain_rows:
+        domain_rows = "<tr><td colspan='2'>No events</td></tr>"
+
     type_rows = "\n".join(
         "<tr>"
         f"<td>{html.escape(type_name)}</td>"
+        f"<td>{html.escape(domain)}</td>"
         f"<td>{count}</td>"
         "</tr>"
-        for type_name, count in event_type_counts.most_common(top_n)
+        for (type_name, domain), count in event_type_counts.most_common(top_n)
     )
     if not type_rows:
-        type_rows = "<tr><td colspan='2'>No events</td></tr>"
+        type_rows = "<tr><td colspan='3'>No events</td></tr>"
 
     id_rows = "\n".join(
         "<tr>"
         f"<td>{event_id}</td>"
         f"<td>{html.escape(event_name)}</td>"
         f"<td>{html.escape(event_type)}</td>"
+        f"<td>{html.escape(domain)}</td>"
         f"<td>{count}</td>"
         "</tr>"
-        for (event_id, event_name, event_type), count in top_level_id_counts.most_common(top_n)
+        for (event_id, event_name, event_type, domain), count in top_level_id_counts.most_common(top_n)
     )
     if not id_rows:
-        id_rows = "<tr><td colspan='4'>No events</td></tr>"
+        id_rows = "<tr><td colspan='5'>No events</td></tr>"
 
     unknown_top_level_rows = "\n".join(
         "<tr>"
         f"<td>{event_id}</td>"
+        f"<td>{html.escape(domain)}</td>"
         f"<td>{count}</td>"
         "</tr>"
-        for event_id, count in unknown_top_level_id_counts.most_common(top_n)
+        for (event_id, domain), count in unknown_top_level_id_counts.most_common(top_n)
     )
     if not unknown_top_level_rows:
-        unknown_top_level_rows = "<tr><td colspan='2'>None</td></tr>"
+        unknown_top_level_rows = "<tr><td colspan='3'>None</td></tr>"
 
     unknown_vst_rows = "\n".join(
         "<tr>"
@@ -208,9 +261,17 @@ section {{ margin-bottom: 20px; }}
 </section>
 
 <section>
+  <h2>Top Domains (Top {top_n})</h2>
+  <table>
+    <thead><tr><th>Domain</th><th>Count</th></tr></thead>
+    <tbody>{domain_rows}</tbody>
+  </table>
+</section>
+
+<section>
   <h2>Top Event Types (Top {top_n})</h2>
   <table>
-    <thead><tr><th>Event Type</th><th>Count</th></tr></thead>
+    <thead><tr><th>Event Type</th><th>Domain</th><th>Count</th></tr></thead>
     <tbody>{type_rows}</tbody>
   </table>
 </section>
@@ -218,7 +279,7 @@ section {{ margin-bottom: 20px; }}
 <section>
   <h2>Top Event IDs (Top {top_n})</h2>
   <table>
-    <thead><tr><th>ID</th><th>Name</th><th>Parsed As</th><th>Count</th></tr></thead>
+    <thead><tr><th>ID</th><th>Name</th><th>Parsed As</th><th>Domain</th><th>Count</th></tr></thead>
     <tbody>{id_rows}</tbody>
   </table>
 </section>
@@ -226,7 +287,7 @@ section {{ margin-bottom: 20px; }}
 <section>
   <h2>Unknown Top-level Event IDs (Top {top_n})</h2>
   <table>
-    <thead><tr><th>ID</th><th>Count</th></tr></thead>
+    <thead><tr><th>ID</th><th>Domain</th><th>Count</th></tr></thead>
     <tbody>{unknown_top_level_rows}</tbody>
   </table>
 </section>
