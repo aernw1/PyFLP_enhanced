@@ -146,3 +146,5 @@ cython_debug/
 
 # Just easier than running tests
 main.py
+
+.venv*
