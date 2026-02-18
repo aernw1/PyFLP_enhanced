@@ -89,6 +89,10 @@ linkcheck_allowed_redirects = {
     r"https://github.com/demberto/PyFLP/files/.*": r"https://objects.githubusercontent.com/.*",  # noqa
     r"https://stackoverflow.com/a/.*": r"https://stackoverflow.com/questions/.*",
 }
+linkcheck_ignore = [
+    # GNU endpoints occasionally time out on CI (not a project-doc issue).
+    r"https://www\.gnu\.org/licenses/gpl-3\.0\.en\.html",
+]
 
 
 def badge_flstudio(app, what, name, obj, options, lines):
