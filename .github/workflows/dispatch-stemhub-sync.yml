@@ -1,0 +1,25 @@
+name: dispatch-stemhub-sync
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    if: github.repository == 'aernw1/PyFLP_enhanced'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger StemHub submodule update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.STEMHUB_REPO_DISPATCH_TOKEN }}
+          repository: aernw1/StemHub
+          event-type: pyflp_upstream_push
+          client-payload: |
+            {
+              "source_repository": "${{ github.repository }}",
+              "source_ref": "${{ github.ref }}",
+              "source_sha": "${{ github.sha }}"
+            }
