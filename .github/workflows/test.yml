@@ -34,7 +34,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-artifacts-${{ matrix.os }}-${{ matrix.python-version }}
-          path: ./.coverage.*
+          path: |
+            .coverage
+            .coverage.*
   upload-to-codecov:
     needs: test
     runs-on: ubuntu-latest
