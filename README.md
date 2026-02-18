@@ -341,6 +341,16 @@ pyflp.save(project, "/path/to/save.flp")
 Check the [reference](https://pyflp.rtfd.io/en/latest/reference.html) for a
 complete list of useable features.
 
+### Parse Coverage Report (Visual)
+
+To inspect what was parsed vs left unknown in a `.flp`, generate an HTML report:
+
+```none
+python tools/flp_parse_report.py /path/to/project.flp -o parse-report.html
+```
+
+Then open `parse-report.html` in your browser.
+
 ## 🙏 Acknowledgements
 
 - Monad.FLParser: <https://github.com/monadgroup/FLParser>

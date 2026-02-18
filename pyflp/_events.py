@@ -59,6 +59,21 @@ class _EventEnumMeta(enum.EnumMeta):
         """
         return obj in tuple(self)
 
+    def __call__(self, value: object, *args: Any, **kwds: Any):
+        """Allow value lookup on base :class:`EventEnum` in Python 3.11+.
+
+        Python 3.11 raises ``TypeError`` when calling an Enum with no members.
+        EventEnum intentionally has no direct members and relies on ``_missing_``
+        to resolve IDs via subclasses or pseudo-members.
+        """
+        if self.__name__ == "EventEnum" and not self._member_map_ and not args and not kwds:
+            missing_handler = getattr(self, "_missing_", None)
+            if callable(missing_handler):
+                missing = missing_handler(value)
+                if missing is not None:
+                    return missing
+        return super().__call__(value, *args, **kwds)
+
 
 class EventEnum(int, enum.Enum, metaclass=_EventEnumMeta):
     """IDs used by events.

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TypeVar
+from typing import TypeVar, cast
+
+import pytest
 
 from pyflp.plugin import (
     AnyPlugin,
@@ -17,6 +19,7 @@ from pyflp.plugin import (
     PluginID,
     Soundgoodizer,
     VSTPlugin,
+    VSTPluginEvent,
     WrapperPage,
 )
 
@@ -164,3 +167,30 @@ def test_fruity_wrapper():
     assert not wrapper.ui.always_update
     assert wrapper.ui.dpi_aware
     assert not wrapper.ui.scale_editor
+
+
+def test_vst_unknown_marker_parses_with_warning():
+    with pytest.warns(RuntimeWarning, match=r"Unknown marker 11"):
+        wrapper = get_plugin("fruity-wrapper-unknown-marker.fst", VSTPlugin)
+
+    assert wrapper.midi.input == 6
+    assert wrapper.compatibility.fast_idle
+    assert wrapper.ui.dpi_aware
+
+
+def test_vst_unknown_subevent_id_parses_with_warning_and_preserves_bytes():
+    with pytest.warns(RuntimeWarning, match=r"Unknown VST sub-event IDs encountered: 99"):
+        djmfilter = get_plugin("xfer-djmfilter-unknown-subevent-id.fst", VSTPlugin)
+
+    assert djmfilter.name == "DJMFilter"
+    assert djmfilter.vendor == "Xfer Records"
+    assert (
+        djmfilter.plugin_path
+        == r"C:\Program Files\Common Files\VST2\Xfer Records\DJMFilter_x64.dll"
+    )
+
+    event = cast(VSTPluginEvent, djmfilter.events.first(PluginID.Data))
+    unknown_events = [subevent for subevent in event["events"] if type(subevent["id"]) is int]
+
+    assert any(subevent["id"] == 99 for subevent in unknown_events)
+    assert all(isinstance(subevent["data"], bytes) for subevent in unknown_events)
